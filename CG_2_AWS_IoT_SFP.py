@@ -1,0 +1,54 @@
+import time
+import json
+from awscrt import mqtt
+from awsiot import mqtt_connection_builder
+
+# 1. Setup the Address and Identity
+ENDPOINT = "a1kefksbmaj4e4-ats.iot.us-east-1.amazonaws.com"                 #AWS End-Point Unique to individual users "I got mine from the terminal"
+CLIENT_ID = "SmartFarm_Pi_01"                                               #THIS IS MY "THING" Created in IoT Core (Match both script and AWS title)
+
+# 2. Point to the Security Keys (All these files are together in a single folder inside the Raspy!!!)
+PATH_TO_CERT = "/home/oscariot/Desktop/smart_farm_project/certs/certificate.pem.crt"        #Point to certificates loaded onto Raspy
+PATH_TO_KEY = "/home/oscariot/Desktop/smart_farm_project/certs/private.pem.key"             #Point to Key loaded onto Raspy
+PATH_TO_ROOT_CA = "/home/oscariot/Desktop/smart_farm_project/certs/AmazonRootCA1.pem"       #Point to RootCA1 loaded onto Raspy
+
+# 3. Create the Connection Object
+mqtt_connection = mqtt_connection_builder.mtls_from_path(
+    endpoint=ENDPOINT,
+    cert_filepath=PATH_TO_CERT,
+    pri_key_filepath=PATH_TO_KEY,
+    ca_filepath=PATH_TO_ROOT_CA,
+    client_id=CLIENT_ID,
+    clean_session=False,
+    keep_alive_secs=30
+)
+
+# 4. Open the Connection
+print("Connecting...")
+connect_future = mqtt_connection.connect()
+connect_future.result() 
+print("Connected!")
+
+# 5. Send a Message (Here is where we can edit the code to fit our needs :D)
+#Change to farm/sensors to match AWS IoT Core Rule
+# Add timestep and device id to script    
+#payload = {"status": "online", "message": "Farm Pi is active"}  #Edit messages to communicate Raspi -> AWS IoT Core MQTT ({})
+
+payload = {
+    "device_id": CLIENT_ID,
+    "timestamp": int(time.time()),
+    "status": "online",
+    "message": "Farm Pi is active"      
+    }
+
+mqtt_connection.publish(                                        #Stablish Mqtt connection
+    topic="farm/status",                                        #This is the topic created in IoT Core that matches exactly with the script
+    payload=json.dumps(payload),                                #Json - IoT Core Security Policy access 
+    qos=mqtt.QoS.AT_LEAST_ONCE
+)
+
+# 6. Close the Connection
+disconnect_future = mqtt_connection.disconnect()
+disconnect_future.result()
+
+#YOOOO This is version 1 of the script .py CG > IoT Core > DynamoDB
