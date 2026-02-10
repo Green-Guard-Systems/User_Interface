@@ -1,0 +1,32 @@
+import random # Add this at the very top of your script
+
+# ... (rest of your connection code) ...
+
+try:
+    while True:
+        # --- START OF YOUR MANIPULATION ---
+        # Simulate a temperature that fluctuates around 24 degrees
+        sim_temp = round(random.uniform(20.0, 28.0), 2)
+        
+        # Simulate moisture that slowly "dries out"
+        sim_moisture = 65.5 
+        
+        payload = {
+            "device_id": CLIENT_ID,
+            "timestamp": int(time.time()),
+            "temperature": sim_temp,
+            "moisture": sim_moisture,
+            "status": "active"
+        }
+        # --- END OF YOUR MANIPULATION ---
+
+        print(f"Sending data: {payload}")
+        mqtt_connection.publish(
+            topic="farm/sensors",
+            payload=json.dumps(payload),
+            qos=mqtt.QoS.AT_LEAST_ONCE
+        )
+        
+        time.sleep(10) # Change this to 60 or 300 for real farming
+except KeyboardInterrupt:
+    print("Stopped by user")
