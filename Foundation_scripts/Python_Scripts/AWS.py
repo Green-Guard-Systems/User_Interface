@@ -1,4 +1,3 @@
-## Current AWS and mqtt connection code, with LoRa packts as input data
 import serial
 import time
 import json
@@ -8,13 +7,14 @@ from awscrt import mqtt
 from awsiot import mqtt_connection_builder
 
 # 1. Setup the Address and Identity
-ENDPOINT = "akxbkn5qour52-ats.iot.us-east-2.amazonaws.com"                 #AWS End-Point Unique to individual users "Domain configuration > domain name"
-CLIENT_ID = "CentralGateway"                                               #THIS IS MY "THING" Created in IoT Core (Match both script and AWS title)
+ENDPOINT = "a1kefksbmaj4e4-ats.iot.us-east-1.amazonaws.com"              #AWS End-Point Unique to individual users "Domain configuration > domain name"
+#CLIENT_ID = "CentralGateway"                                            #THIS IS MY "THING" Created in IoT Core (Match both script and AWS title)
+CLIENT_ID = "SmartFarm_P1_01"                                            #OSCAR's thing
 
 # 2. Point to the Security Keys (All these files are together in a single folder inside the Raspy!!!)
 PATH_TO_CERT = "/home/pi/AWS/AWScertificates/certificate.pem.crt"        #certificate
 PATH_TO_KEY = "/home/pi/AWS/AWScertificates/private.pem.key"             #private key
-PATH_TO_ROOT_CA = "/home/pi/AWS/AWScertificates/RootCA1.pem"       #Point to RootCA1 loaded onto Raspy
+PATH_TO_ROOT_CA = "/home/pi/AWS/AWScertificates/AmazonRootCA1.pem"       #Point to RootCA1 loaded onto Raspy
 
 # 3. Create the Connection Object
 mqtt_connection = mqtt_connection_builder.mtls_from_path(
@@ -51,7 +51,15 @@ def decode_lora_packet(raw_input):
     ## the recieved message will have "+RCV=..." format, so thispart is cruusial
     if "AT+SEND" in raw_input or "+RCV=" in raw_input:
         try:
-            raw_input = raw_input.split(",")[2] #extracting the Binary string from LoRa packet 
+            #extracting LoRa HEX message
+            hex_payload = raw_input.split(",")[2].strip()
+
+            print("HEX Payload:", hex_payload)
+
+            # Convert HEX → 32-bit binary
+            raw_input = bin(int(hex_payload, 16))[2:].zfill(32)
+
+            print("Binary (32-bit):", raw_input)
         except:
             print("Invalid AT format.")
             return
@@ -109,6 +117,19 @@ def decode_lora_packet(raw_input):
     health_class = int(health_bits, 2)
     battery = int(battery_bits, 2)
     soil_moisture = int(soil_bits, 2)
+    
+    # -------------Adding more complexity to Node ID
+    node_prefix_map = {
+    0: "GW",
+    1: "CN",
+    2: "FN",
+    3: "ON"
+    }
+
+    prefix = node_prefix_map.get(node_type, "UN")
+    formatted_number = f"{node_id:06d}"
+    full_node_id = f"{prefix}{formatted_number}"
+
 
     # ****************** soil moisture interpretation ******************
     
@@ -138,25 +159,29 @@ def decode_lora_packet(raw_input):
     node_type_label = node_type_map.get(node_type, "unknown")
     health_type_lable = health_map.get(health_class, "Reserved")
 
+    moist = int(22)
+
     print("\n--- Decoded Packet ---")
+    print("Device ID     :", CLIENT_ID)
     print("Node Type     :", node_type_label)
-    print("Node ID       :", node_id)
+    print("Node ID       :", full_node_id)
     print("Health Class  :", health_type_lable)
     print("Battery (%)   :", battery)
-    print("Soil Moisture :", moisture_status)
+    print("Soil Moisture :", moist)
     print("-----------------------\n")
     
     payload = {
+    "device_id": CLIENT_ID,
     "timestamp": int(time.time()),
     "node_type": node_type_label,
-    "node_id": node_id,
+    "node_id": full_node_id,
     "health_class": health_type_lable,
     "Battery": battery,
-    "Soil_Moisture": moisture_status,
+    "Soil_Moisture": moist,
     }
 
     mqtt_connection.publish(
-    topic="farm/status",
+    topic="farm/sensors",
     payload=json.dumps(payload),
     qos=mqtt.QoS.AT_LEAST_ONCE
     )

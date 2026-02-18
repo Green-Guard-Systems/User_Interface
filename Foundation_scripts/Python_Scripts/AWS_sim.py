@@ -1,3 +1,38 @@
+#Incoming LoRa packet simulator
+import time
+import json
+import awscrt
+import awsiot
+from awscrt import mqtt
+from awsiot import mqtt_connection_builder
+
+# 1. Setup the Address and Identity
+ENDPOINT = "a1kefksbmaj4e4-ats.iot.us-east-1.amazonaws.com"              #AWS End-Point Unique to individual users "Domain configuration > domain name"
+#CLIENT_ID = "CentralGateway"                                            #THIS IS MY "THING" Created in IoT Core (Match both script and AWS title)
+CLIENT_ID = "SmartFarm_P1_01"                                            #OSCAR's thing
+
+# 2. Point to the Security Keys (All these files are together in a single folder inside the Raspy!!!)
+PATH_TO_CERT = "/home/pi/AWS/AWScertificates/certificate.pem.crt"        #certificate
+PATH_TO_KEY = "/home/pi/AWS/AWScertificates/private.pem.key"             #private key
+PATH_TO_ROOT_CA = "/home/pi/AWS/AWScertificates/AmazonRootCA1.pem"       #Point to RootCA1 loaded onto Raspy
+
+# 3. Create the Connection Object
+mqtt_connection = mqtt_connection_builder.mtls_from_path(
+    endpoint=ENDPOINT,
+    cert_filepath=PATH_TO_CERT,
+    pri_key_filepath=PATH_TO_KEY,
+    ca_filepath=PATH_TO_ROOT_CA,
+    client_id=CLIENT_ID,
+    clean_session=False,
+    keep_alive_secs=30
+)
+
+# 4. Open the Connection
+print("Connecting...")
+connect_future = mqtt_connection.connect()
+connect_future.result() 
+print("Connected!")
+
 def decode_lora_packet(raw_input):
 
     # Remove AT command wrapper if present
@@ -5,7 +40,15 @@ def decode_lora_packet(raw_input):
     ## the recieved message will have "+RCV=..." format, so thispart is cruusial
     if "AT+SEND" in raw_input or "+RCV=" in raw_input:
         try:
-            raw_input = raw_input.split(",")[2] #extracting the Binary string from LoRa packet 
+            #extracting LoRa HEX message
+            hex_payload = raw_input.split(",")[2].strip()
+
+            print("HEX Payload:", hex_payload)
+
+            # Convert HEX → 32-bit binary
+            raw_input = bin(int(hex_payload, 16))[2:].zfill(32)
+
+            print("Binary (32-bit):", raw_input)
         except:
             print("Invalid AT format.")
             return
@@ -117,13 +160,13 @@ def decode_lora_packet(raw_input):
     print("-----------------------\n")
     
     payload = {
-    "device_id": CLIENT_ID,
+    "device_id": str(CLIENT_ID),
     "timestamp": int(time.time()),
     "node_type": node_type_label,
     "node_id": full_node_id,
     "health_class": health_type_lable,
-    "Battery": battery,
-    "Soil_Moisture": moist,
+    "Battery": str(battery),
+    "Soil_Moisture": str(moist),
     }
 
     mqtt_connection.publish(
@@ -141,3 +184,5 @@ if __name__ == "__main__":
     while True:
         user_input = input("Enter received LoRa packet: ")
         decode_lora_packet(user_input)
+        
+        #AT+SEND=6,8,84564871
