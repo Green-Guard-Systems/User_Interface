@@ -1,5 +1,6 @@
 import time
 import json
+import random
 from awscrt import mqtt
 from awsiot import mqtt_connection_builder
 
@@ -8,9 +9,9 @@ ENDPOINT = "a1kefksbmaj4e4-ats.iot.us-east-1.amazonaws.com"                 #AWS
 CLIENT_ID = "SmartFarm_Pi_01"                                               #THIS IS MY "THING" Created in IoT Core (Match both script and AWS title)
 
 # 2. Point to the Security Keys (All these files are together in a single folder inside the Raspy!!!)
-PATH_TO_CERT = "/home/oscariot/Desktop/smart_farm_project/certs/certificate.pem.crt"        #Point to certificates loaded onto Raspy
-PATH_TO_KEY = "/home/oscariot/Desktop/smart_farm_project/certs/private.pem.key"             #Point to Key loaded onto Raspy
-PATH_TO_ROOT_CA = "/home/oscariot/Desktop/smart_farm_project/certs/AmazonRootCA1.pem"       #Point to RootCA1 loaded onto Raspy
+PATH_TO_CERT = "/home/oscariot/GG_Gits/certs/certificate.pem.crt"        #Point to certificates loaded onto Raspy
+PATH_TO_KEY = "/home/oscariot/GG_Gits/certs//private.pem.key"             #Point to Key loaded onto Raspy
+PATH_TO_ROOT_CA = "/home/oscariot/GG_Gits/certs/AmazonRootCA1.pem"       #Point to RootCA1 loaded onto Raspy
 
 # 3. Create the Connection Object
 mqtt_connection = mqtt_connection_builder.mtls_from_path(
@@ -34,18 +35,48 @@ print("Connected!")
 # Add timestep and device id to script    
 #payload = {"status": "online", "message": "Farm Pi is active"}  #Edit messages to communicate Raspi -> AWS IoT Core MQTT ({})
 
-payload = {
-    "device_id": CLIENT_ID,
-    "timestamp": int(time.time()),
-    "status": "online",
-    "message": "Farm Pi is active"      
-    }
+try:
+    while True:
+        # --- START OF YOUR MANIPULATION ---
+        # Simulate a temperature that fluctuates around 24 degrees
+        sim_temp = round(random.uniform(20.0, 28.0), 2)
+        sim_node_type = round(random.randint(1, 10), 2)
+        sim_node_id = round(random.randint(1, 10), 2)
+        sim_health = round(random.randint(0, 2), 2)
 
-mqtt_connection.publish(                                        #Stablish Mqtt connection
-    topic="farm/status",                                        #This is the topic created in IoT Core that matches exactly with the script
-    payload=json.dumps(payload),                                #Json - IoT Core Security Policy access 
-    qos=mqtt.QoS.AT_LEAST_ONCE
-)
+        # SimulatING static moisture"
+        sim_moisture = 65.5; 
+        
+        
+        payload = {
+            "device_id": CLIENT_ID,
+            "node_type": sim_node_type,
+            "node_id": sim_node_id,
+
+            
+            "health_class": sim_health,         #UPDATE
+            "temperature": sim_temp,            #REMOVE
+            "soil_moisture": sim_moisture,           #UPDATE
+
+
+            "battery": 100, #Place holder for now
+            "status": "active",
+            "message" : "Incorporating Dynamic Var temp",
+
+            "timestamp": int(time.time()),
+        }
+        # --- END OF MANIPULATION ---
+
+        print(f"Sending data: {payload}")
+        mqtt_connection.publish(
+            topic="farm/sensors",
+            payload=json.dumps(payload),
+            qos=mqtt.QoS.AT_LEAST_ONCE
+        )
+        
+        time.sleep(10) # Change this depending on how often data will be sent (10 sec at this point)
+except KeyboardInterrupt:
+    print("Stopped by user")
 
 # 6. Close the Connection
 disconnect_future = mqtt_connection.disconnect()
