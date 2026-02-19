@@ -1,4 +1,4 @@
-import time
+m6import time
 import json
 import random
 from awscrt import mqtt
@@ -40,7 +40,7 @@ try:
         # --- START OF YOUR MANIPULATION ---
         # Simulate a temperature that fluctuates around 24 degrees
         sim_temp = round(random.uniform(20.0, 28.0), 2)
-        sim_node_type = "Central Gateway"
+        sim_node_type = round(random.randint(1, 10), 2)
         sim_node_id = round(random.randint(1, 10), 2)
         sim_health = round(random.randint(0, 2), 2)
 
@@ -59,7 +59,7 @@ try:
             "soil_moisture": sim_moisture,           #UPDATE
 
 
-            "battery": "HELLO_100", #Place holder for now
+            "battery": 100, #Place holder for now
             "status": "active",
             "message" : "Incorporating Dynamic Var temp",
 
@@ -81,4 +81,5 @@ except KeyboardInterrupt:
 # 6. Close the Connection
 disconnect_future = mqtt_connection.disconnect()
 disconnect_future.result()
+
 
