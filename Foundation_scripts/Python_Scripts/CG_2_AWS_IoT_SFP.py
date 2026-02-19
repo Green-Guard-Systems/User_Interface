@@ -4,6 +4,8 @@ import random
 from awscrt import mqtt
 from awsiot import mqtt_connection_builder
 
+import random # Add this at the very top of your script
+
 # 1. Setup the Address and Identity
 ENDPOINT = "a1kefksbmaj4e4-ats.iot.us-east-1.amazonaws.com"                 #AWS End-Point Unique to individual users "I got mine from the terminal"
 CLIENT_ID = "SmartFarm_Pi_01"                                               #THIS IS MY "THING" Created in IoT Core (Match both script and AWS title)
@@ -40,6 +42,7 @@ try:
         # --- START OF YOUR MANIPULATION ---
         # Simulate a temperature that fluctuates around 24 degrees
         sim_temp = round(random.uniform(20.0, 28.0), 2)
+<<<<<<< HEAD
         sim_node_type = "Central Gateway"
         sim_node_id = round(random.randint(1, 10), 2)
         sim_health = round(random.randint(0, 2), 2)
@@ -77,8 +80,30 @@ try:
         time.sleep(10) # Change this depending on how often data will be sent (10 sec at this point)
 except KeyboardInterrupt:
     print("Stopped by user")
+=======
+        
+        # Simulate moisture that slowly "dries out"
+        sim_moisture = 65.5 
 
-# 6. Close the Connection
-disconnect_future = mqtt_connection.disconnect()
-disconnect_future.result()
+        payload = {
+            "device_id": CLIENT_ID,
+            "timestamp": int(time.time()),
+            "status": "online",
+            "message": "Farm Pi is active"      
+            }
+>>>>>>> 6d4cb0b0d84521b5edfc90784c608562a46e3038
+
+        mqtt_connection.publish(                                        #Stablish Mqtt connection
+            topic="farm/status",                                        #This is the topic created in IoT Core that matches exactly with the script
+            payload=json.dumps(payload),                                #Json - IoT Core Security Policy access 
+            qos=mqtt.QoS.AT_LEAST_ONCE
+        )
+        time.sleep(1)
+except KeyboardInterrupt:
+    print("Disconnecting...")
+
+finally:
+    # 6. Close the Connection
+    disconnect_future = mqtt_connection.disconnect()
+    disconnect_future.result()
 
